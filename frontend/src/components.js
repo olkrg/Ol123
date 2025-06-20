@@ -123,24 +123,16 @@ export const Unit = ({ unit, onSelect, isSelected, onMove }) => {
   };
 
   return (
-    <Draggable
-      position={position}
-      onDrag={handleDrag}
-      bounds="parent"
+    <div
+      className={`absolute cursor-pointer select-none ${
+        isSelected ? 'z-30' : 'z-20'
+      }`}
+      style={{ left: position.x, top: position.y }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(unit.id);
+      }}
     >
-      <motion.div
-        className={`absolute cursor-pointer select-none ${
-          isSelected ? 'z-30' : 'z-20'
-        }`}
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelect(unit.id);
-        }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        animate={isSelected ? { y: [0, -5, 0] } : {}}
-        transition={{ duration: 1, repeat: isSelected ? Infinity : 0 }}
-      >
         {/* Selection circle */}
         {isSelected && (
           <div className="absolute -inset-4 border-2 border-yellow-400 rounded-full bg-yellow-400 bg-opacity-20 animate-pulse"></div>
