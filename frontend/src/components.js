@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Draggable from 'react-draggable';
 
 // Game constants
 const RACES = {
@@ -105,14 +104,41 @@ export const MiniMap = ({ units, buildings, mapSize = 200 }) => {
   );
 };
 
-// Unit Component
+// Unit Component (Fixed without Draggable)
 export const Unit = ({ unit, onSelect, isSelected, onMove }) => {
   const [position, setPosition] = useState({ x: unit.x, y: unit.y });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
   
-  const handleDrag = (e, data) => {
-    setPosition({ x: data.x, y: data.y });
-    onMove(unit.id, data.x, data.y);
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    dragStart.current = { x: e.clientX - position.x, y: e.clientY - position.y };
   };
+  
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    const newX = e.clientX - dragStart.current.x;
+    const newY = e.clientY - dragStart.current.y;
+    setPosition({ x: newX, y: newY });
+  };
+  
+  const handleMouseUp = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      onMove(unit.id, position.x, position.y);
+    }
+  };
+  
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, position]);
 
   const getUnitIcon = (type, race) => {
     if (type === UNIT_TYPES.HERO) return '👑';
@@ -123,54 +149,58 @@ export const Unit = ({ unit, onSelect, isSelected, onMove }) => {
   };
 
   return (
-    <div
+    <motion.div
       className={`absolute cursor-pointer select-none ${
         isSelected ? 'z-30' : 'z-20'
-      }`}
+      } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
       style={{ left: position.x, top: position.y }}
       onClick={(e) => {
         e.stopPropagation();
         onSelect(unit.id);
       }}
+      onMouseDown={handleMouseDown}
+      whileHover={{ scale: 1.1 }}
+      whileTap={{ scale: 0.95 }}
+      animate={isSelected ? { y: [0, -5, 0] } : {}}
+      transition={{ duration: 1, repeat: isSelected ? Infinity : 0 }}
     >
-        {/* Selection circle */}
-        {isSelected && (
-          <div className="absolute -inset-4 border-2 border-yellow-400 rounded-full bg-yellow-400 bg-opacity-20 animate-pulse"></div>
-        )}
-        
-        {/* Unit portrait */}
-        <div className={`w-12 h-12 rounded-full border-2 ${
-          isSelected ? 'border-yellow-400' : 'border-gray-600'
-        } bg-gradient-to-br from-amber-800 to-amber-900 flex items-center justify-center text-lg shadow-lg`}>
-          {getUnitIcon(unit.type, unit.race)}
-        </div>
-        
-        {/* Health bar */}
-        <div className="absolute -bottom-2 left-0 right-0 bg-black bg-opacity-60 rounded-full h-1.5 border border-gray-400">
+      {/* Selection circle */}
+      {isSelected && (
+        <div className="absolute -inset-4 border-2 border-yellow-400 rounded-full bg-yellow-400 bg-opacity-20 animate-pulse"></div>
+      )}
+      
+      {/* Unit portrait */}
+      <div className={`w-12 h-12 rounded-full border-2 ${
+        isSelected ? 'border-yellow-400' : 'border-gray-600'
+      } bg-gradient-to-br from-amber-800 to-amber-900 flex items-center justify-center text-lg shadow-lg`}>
+        {getUnitIcon(unit.type, unit.race)}
+      </div>
+      
+      {/* Health bar */}
+      <div className="absolute -bottom-2 left-0 right-0 bg-black bg-opacity-60 rounded-full h-1.5 border border-gray-400">
+        <div 
+          className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full"
+          style={{ width: `${unit.health}%` }}
+        ></div>
+      </div>
+      
+      {/* Mana bar (for heroes and casters) */}
+      {unit.mana > 0 && (
+        <div className="absolute -bottom-4 left-0 right-0 bg-black bg-opacity-60 rounded-full h-1 border border-gray-400">
           <div 
-            className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full"
-            style={{ width: `${unit.health}%` }}
+            className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full"
+            style={{ width: `${unit.mana}%` }}
           ></div>
         </div>
-        
-        {/* Mana bar (for heroes and casters) */}
-        {unit.mana > 0 && (
-          <div className="absolute -bottom-4 left-0 right-0 bg-black bg-opacity-60 rounded-full h-1 border border-gray-400">
-            <div 
-              className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full"
-              style={{ width: `${unit.mana}%` }}
-            ></div>
-          </div>
-        )}
-        
-        {/* Level indicator for heroes */}
-        {unit.type === UNIT_TYPES.HERO && (
-          <div className="absolute -top-2 -right-2 bg-purple-600 text-yellow-300 text-xs w-5 h-5 rounded-full flex items-center justify-center border border-yellow-400 font-bold">
-            {unit.level}
-          </div>
-        )}
-      </motion.div>
-    </Draggable>
+      )}
+      
+      {/* Level indicator for heroes */}
+      {unit.type === UNIT_TYPES.HERO && (
+        <div className="absolute -top-2 -right-2 bg-purple-600 text-yellow-300 text-xs w-5 h-5 rounded-full flex items-center justify-center border border-yellow-400 font-bold">
+          {unit.level}
+        </div>
+      )}
+    </motion.div>
   );
 };
 
@@ -470,7 +500,7 @@ export const RaceSelection = ({ isOpen, onSelect, onClose }) => {
           {races.map(race => (
             <motion.button
               key={race.id}
-              className={`p-4 bg-gradient-to-br from-${race.color}-800 to-${race.color}-900 border-2 border-${race.color}-600 rounded-lg text-left hover:border-yellow-400 transition-colors`}
+              className={`p-4 bg-gradient-to-br from-gray-800 to-gray-900 border-2 border-gray-600 rounded-lg text-left hover:border-yellow-400 transition-colors`}
               onClick={() => onSelect(race.id)}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
